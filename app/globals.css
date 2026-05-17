@@ -1,0 +1,63 @@
+/* DO NOT add @import statements here — Tailwind only */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* ── Nuvello design system ──────────────────────────────────────────── */
+    --nv-bg: #F8F8FA;
+    --nv-surface: #FFFFFF;
+    --nv-border: #E2E0EB;
+    --nv-text: #2B2B2E;
+    --nv-text-secondary: #5A5575;
+    --nv-muted: #9490A8;
+    --nv-accent: #1E1F6B;
+    --nv-accent-hover: #16176B;
+    --nv-accent-light: #EEEDF8;
+    --nv-accent-subtle: #C5C4E0;
+    --nv-success: #8EECD4;
+    --nv-danger: #B33A3A;
+
+    /* ── shadcn/ui tokens — overridden with design system values ─────────── */
+    --background: #F8F8FA;
+    --foreground: #2B2B2E;
+    --card: #FFFFFF;
+    --card-foreground: #2B2B2E;
+    --popover: #FFFFFF;
+    --popover-foreground: #2B2B2E;
+    --primary: #1E1F6B;
+    --primary-foreground: #FFFFFF;
+    --secondary: #EEEDF8;
+    --secondary-foreground: #1E1F6B;
+    --muted: #F8F8FA;
+    --muted-foreground: #9490A8;
+    --accent: #EEEDF8;
+    --accent-foreground: #1E1F6B;
+    --destructive: #B33A3A;
+    --destructive-foreground: #FFFFFF;
+    --border: #E2E0EB;
+    --input: #E2E0EB;
+    --ring: #C5C4E0;
+    --radius: 0.625rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+  }
+}
