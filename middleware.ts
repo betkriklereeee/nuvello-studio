@@ -1,8 +1,28 @@
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { createMiddlewareClient } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  const { supabase, supabaseResponse } = await createMiddlewareClient(request)
+  let response = NextResponse.next({ request })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
   const { pathname } = request.nextUrl
 
   // Always call getUser() to refresh the session cookie
@@ -22,7 +42,7 @@ export async function middleware(request: NextRequest) {
     if (profile?.role !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
-    return supabaseResponse
+    return response
   }
 
   // ── /dashboard — must be authenticated ───────────────────────────────────
@@ -30,7 +50,7 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
-    return supabaseResponse
+    return response
   }
 
   // ── /login — redirect authenticated users to their home ──────────────────
@@ -45,10 +65,10 @@ export async function middleware(request: NextRequest) {
       const destination = profile?.role === 'admin' ? '/admin' : '/dashboard'
       return NextResponse.redirect(new URL(destination, request.url))
     }
-    return supabaseResponse
+    return response
   }
 
-  return supabaseResponse
+  return response
 }
 
 export const config = {
