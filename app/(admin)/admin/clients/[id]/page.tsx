@@ -50,7 +50,7 @@ export default async function ClientDetailPage({ params }: Props) {
               Client since {new Date(client.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <SendMagicLinkButton email={client.email} />
+          <SendMagicLinkButton email={client.email} clientName={client.name} />
         </div>
       </div>
 

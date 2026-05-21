@@ -2,6 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from './supabase/admin'
+import { sendClientInviteEmail, sendDeliverableUploadedEmail } from './resend/emails'
+
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
 
@@ -12,9 +15,7 @@ export async function addClient(data: { name: string; email: string; company?: s
   const { data: linkData, error: linkError } = await db.auth.admin.generateLink({
     type: 'magiclink',
     email: data.email,
-    options: {
-      redirectTo: 'http://localhost:3000/auth/callback',
-    },
+    options: { redirectTo: `${baseUrl}/auth/callback` },
   })
   if (linkError) return { error: linkError.message }
 
@@ -46,17 +47,22 @@ export async function removeClient(id: string) {
   return { success: true }
 }
 
-export async function sendClientMagicLink(email: string) {
+export async function sendClientMagicLink(email: string, clientName: string) {
   const db = createAdminClient()
   const { data, error } = await db.auth.admin.generateLink({
     type: 'magiclink',
     email,
-    options: {
-      redirectTo: 'http://localhost:3000/auth/callback',
-    },
+    options: { redirectTo: `${baseUrl}/auth/callback` },
   })
   if (error) return { error: error.message }
-  return { success: true, link: data.properties.action_link }
+
+  await sendClientInviteEmail({
+    clientEmail: email,
+    clientName,
+    magicLink: data.properties.action_link,
+  })
+
+  return { success: true }
 }
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
@@ -160,6 +166,28 @@ export async function addDeliverable(data: {
   const { error } = await db.from('deliverables').insert(data)
   if (error) return { error: error.message }
   revalidatePath(`/admin/projects/${data.project_id}`)
+
+  // Notify client — best-effort, don't block on failure
+  const { data: project } = await db
+    .from('projects')
+    .select('name, client_id')
+    .eq('id', data.project_id)
+    .single()
+  if (project) {
+    const { data: client } = await db
+      .from('clients')
+      .select('email')
+      .eq('id', project.client_id)
+      .single()
+    if (client) {
+      await sendDeliverableUploadedEmail({
+        clientEmail: client.email,
+        projectName: project.name,
+        deliverableTitle: data.title,
+      })
+    }
+  }
+
   return { success: true }
 }
 
@@ -187,7 +215,6 @@ export async function saveProjectDriveFolder(data: {
   folder_url: string
 }) {
   const db = createAdminClient()
-  // Extract Google Drive folder ID from URL (25+ char alphanumeric segment)
   const match = data.folder_url.match(/[-\w]{25,}/)
   const folder_id = match ? match[0] : data.folder_url
 
