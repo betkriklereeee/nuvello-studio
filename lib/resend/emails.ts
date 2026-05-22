@@ -1,4 +1,4 @@
-import { resend, FROM, ADMIN_EMAIL } from './client'
+import { getResend, FROM, ADMIN_EMAIL } from './client'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 const LOGO_URL = 'https://studio.nuvelloweb.com/logo.png'
@@ -39,7 +39,7 @@ export async function sendClientInviteEmail({
   clientName: string
   magicLink: string
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: FROM,
     to: clientEmail,
     subject: "You've been invited to Nuvello Studio",
@@ -64,7 +64,7 @@ export async function sendDeliverableUploadedEmail({
   projectName: string
   deliverableTitle: string
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: FROM,
     to: clientEmail,
     subject: `New deliverable ready for your review — ${projectName}`,
@@ -91,7 +91,7 @@ export async function sendDeliverableApprovedEmail({
   projectName: string
   projectId: string
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
     subject: `${clientName} approved a deliverable`,
@@ -120,7 +120,7 @@ export async function sendRevisionRequestedEmail({
   projectId: string
   revisionNotes: string
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
     subject: `${clientName} requested revisions`,
@@ -147,7 +147,7 @@ export async function sendNewMessageEmail({
   messageText: string
   projectId: string
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
     subject: `New message from ${clientName} — ${projectName}`,
