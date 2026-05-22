@@ -1,34 +1,53 @@
 import { getResend, FROM, ADMIN_EMAIL } from './client'
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-const LOGO_URL = 'https://studio.nuvelloweb.com/logo.png'
-const ACCENT = '#1E1F6B'
+const PORTAL_URL = 'https://studio.nuvelloweb.com'
 
-function layout(heading: string, body: string, ctaText: string, ctaUrl: string, footer: string) {
+// ─── Shared layout ────────────────────────────────────────────────────────────
+// `extra` is optional raw HTML injected between the body paragraph and the CTA button.
+
+function layout(
+  title: string,
+  heading: string,
+  body: string,
+  ctaText: string,
+  ctaUrl: string,
+  extra: string = '',
+) {
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${heading}</title></head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${title}</title>
+</head>
 <body style="margin:0;padding:0;background:#F8F8FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8F8FA;padding:40px 16px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;border:1px solid #E2E0EB;overflow:hidden;">
-        <tr><td style="padding:32px 40px 24px;border-bottom:1px solid #E2E0EB;">
-          <img src="${LOGO_URL}" alt="Nuvello Studio" height="40" style="height:40px;width:auto;display:block;">
-        </td></tr>
-        <tr><td style="padding:40px 40px 32px;">
-          <h1 style="margin:0 0 16px;font-size:24px;font-weight:600;color:#2B2B2E;">${heading}</h1>
-          <p style="margin:0 0 32px;font-size:15px;line-height:1.6;color:#5A5575;">${body}</p>
-          <a href="${ctaUrl}" style="display:inline-block;padding:14px 28px;background:${ACCENT};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">${ctaText}</a>
-        </td></tr>
-        <tr><td style="padding:20px 40px 32px;border-top:1px solid #E2E0EB;">
-          <p style="margin:0;font-size:12px;color:#9490A8;line-height:1.6;">${footer}</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+  <div style="background:#F8F8FA;padding:40px 0;">
+    <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border-radius:12px;border:1px solid #E2E0EB;overflow:hidden;">
+
+      <!-- Header -->
+      <div style="background:#1E1F6B;padding:32px 40px;">
+        <span style="font-size:20px;font-weight:700;color:#FFFFFF;letter-spacing:-0.3px;">nuvello.studio</span>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:40px;">
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:#2B2B2E;line-height:1.3;">${heading}</h1>
+        <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#5A5575;">${body}</p>
+        ${extra ? `${extra}\n        ` : ''}<a href="${ctaUrl}" style="display:inline-block;padding:14px 28px;background:#1E1F6B;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">${ctaText}</a>
+      </div>
+
+      <!-- Footer -->
+      <div style="border-top:1px solid #E2E0EB;padding:20px 40px;">
+        <p style="margin:0;font-size:12px;color:#9490A8;line-height:1.6;">Nuvello Studio &middot; studio.nuvelloweb.com</p>
+      </div>
+
+    </div>
+  </div>
 </body>
 </html>`
 }
+
+// ─── Email functions ───────────────────────────────────────────────────────────
 
 export async function sendClientInviteEmail({
   clientEmail,
@@ -44,11 +63,12 @@ export async function sendClientInviteEmail({
     to: clientEmail,
     subject: "You've been invited to Nuvello Studio",
     html: layout(
-      "You're invited",
-      `Hi ${clientName}, Nuvello Web has set up your project portal on Nuvello Studio. Click below to access your dashboard.`,
+      "You've been invited to Nuvello Studio",
+      "Your client portal is ready",
+      `Hi ${clientName}, Nuvello Web has set up your project portal on Nuvello Studio. Click below to access your dashboard and see your projects.`,
       'Access My Dashboard',
       magicLink,
-      "This link expires after first use. If you didn't expect this email, you can safely ignore it."
+      '',
     ),
   })
   if (error) console.error('[resend] sendClientInviteEmail:', error)
@@ -69,11 +89,12 @@ export async function sendDeliverableUploadedEmail({
     to: clientEmail,
     subject: `New deliverable ready for your review — ${projectName}`,
     html: layout(
+      `New deliverable ready for review`,
       "Something's ready for you",
-      `A new deliverable has been added to your <strong>${projectName}</strong> project: <strong>${deliverableTitle}</strong>. Log in to review and approve it.`,
+      `A new deliverable has been added to your <strong style="color:#2B2B2E;">${projectName}</strong> project: <strong style="color:#2B2B2E;">${deliverableTitle}</strong>. Log in to review it and leave your feedback or approval.`,
       'Review Now',
-      `${BASE_URL}/dashboard`,
-      'You received this because you have an active project on Nuvello Studio.'
+      `${PORTAL_URL}/dashboard`,
+      '',
     ),
   })
   if (error) console.error('[resend] sendDeliverableUploadedEmail:', error)
@@ -96,11 +117,12 @@ export async function sendDeliverableApprovedEmail({
     to: ADMIN_EMAIL,
     subject: `${clientName} approved a deliverable`,
     html: layout(
+      'Deliverable approved',
       'Deliverable approved ✓',
-      `${clientName} approved <strong>${deliverableTitle}</strong> on <strong>${projectName}</strong>.`,
+      `<strong style="color:#2B2B2E;">${clientName}</strong> approved <strong style="color:#2B2B2E;">${deliverableTitle}</strong> on <strong style="color:#2B2B2E;">${projectName}</strong>. Open the project to continue.`,
       'View Project',
-      `${BASE_URL}/admin/projects/${projectId}`,
-      'This notification was sent automatically by Nuvello Studio.'
+      `${PORTAL_URL}/admin/projects/${projectId}`,
+      '',
     ),
   })
   if (error) console.error('[resend] sendDeliverableApprovedEmail:', error)
@@ -120,16 +142,21 @@ export async function sendRevisionRequestedEmail({
   projectId: string
   revisionNotes: string
 }) {
+  const notesBox = `<div style="background:#FFF8F8;border-left:3px solid #B33A3A;border-radius:0 4px 4px 0;padding:12px 16px;margin-bottom:28px;">
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#5A5575;font-style:italic;">&ldquo;${revisionNotes}&rdquo;</p>
+        </div>`
+
   const { error } = await getResend().emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
-    subject: `${clientName} requested revisions`,
+    subject: `${clientName} requested revisions on ${deliverableTitle}`,
     html: layout(
       'Revision requested',
-      `${clientName} requested revisions on <strong>${deliverableTitle}</strong> on <strong>${projectName}</strong>:<br><br><em style="color:#5A5575;">"${revisionNotes}"</em>`,
+      'Revision requested',
+      `<strong style="color:#2B2B2E;">${clientName}</strong> requested revisions on <strong style="color:#2B2B2E;">${deliverableTitle}</strong> in <strong style="color:#2B2B2E;">${projectName}</strong>. Their notes:`,
       'View Project',
-      `${BASE_URL}/admin/projects/${projectId}`,
-      'This notification was sent automatically by Nuvello Studio.'
+      `${PORTAL_URL}/admin/projects/${projectId}`,
+      notesBox,
     ),
   })
   if (error) console.error('[resend] sendRevisionRequestedEmail:', error)
@@ -149,10 +176,11 @@ export async function sendPasswordResetEmail({
     subject: 'Reset your Nuvello Studio password',
     html: layout(
       'Reset your password',
-      'Click below to reset your password for Nuvello Studio. This link is single-use and expires shortly.',
+      'Reset your password',
+      'Click below to reset your password for Nuvello Studio. This link is single-use and expires shortly. If you did not request this, you can safely ignore it.',
       'Reset Password',
       resetLink,
-      "If you didn't request a password reset, you can safely ignore this email."
+      '',
     ),
   })
   if (error) console.error('[resend] sendPasswordResetEmail:', error)
@@ -170,16 +198,21 @@ export async function sendNewMessageEmail({
   messageText: string
   projectId: string
 }) {
+  const quoteBox = `<div style="background:#F8F8FA;border-left:3px solid #C5C4E0;border-radius:0 4px 4px 0;padding:12px 16px;margin-bottom:28px;">
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#5A5575;">${messageText}</p>
+        </div>`
+
   const { error } = await getResend().emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
     subject: `New message from ${clientName} — ${projectName}`,
     html: layout(
       `New message from ${clientName}`,
-      `<strong>${clientName}</strong> sent a message on <strong>${projectName}</strong>:<br><br><em style="color:#5A5575;">"${messageText}"</em>`,
+      `New message from ${clientName}`,
+      `<strong style="color:#2B2B2E;">${clientName}</strong> sent a message on <strong style="color:#2B2B2E;">${projectName}</strong>:`,
       'View Project',
-      `${BASE_URL}/admin/projects/${projectId}`,
-      'This notification was sent automatically by Nuvello Studio.'
+      `${PORTAL_URL}/admin/projects/${projectId}`,
+      quoteBox,
     ),
   })
   if (error) console.error('[resend] sendNewMessageEmail:', error)
