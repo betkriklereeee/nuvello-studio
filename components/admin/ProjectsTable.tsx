@@ -23,17 +23,19 @@ interface Props {
 
 export function ProjectsTable({ projects: initial, clients, defaultClientId }: Props) {
   const [projects] = useState(initial)
-  const [modalOpen, setModalOpen] = useState(!!defaultClientId && initial.length === 0 ? false : false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [servicesInput, setServicesInput] = useState('')
+  const [estimatedHours, setEstimatedHours] = useState('')
   const router = useRouter()
 
   function openAdd() {
     setEditing(null)
     setServicesInput('')
+    setEstimatedHours('')
     setError('')
     setModalOpen(true)
   }
@@ -41,6 +43,7 @@ export function ProjectsTable({ projects: initial, clients, defaultClientId }: P
   function openEdit(p: Project) {
     setEditing(p)
     setServicesInput(p.services?.join(', ') ?? '')
+    setEstimatedHours(p.estimated_hours != null ? String(p.estimated_hours) : '')
     setError('')
     setModalOpen(true)
   }
@@ -59,6 +62,7 @@ export function ProjectsTable({ projects: initial, clients, defaultClientId }: P
       client_id: fd.get('client_id') as string,
       status: fd.get('status') as string,
       services,
+      estimated_hours: estimatedHours ? Number(estimatedHours) : null,
     }
     const result = editing ? await editProject(editing.id, data) : await addProject(data)
     setLoading(false)
@@ -225,6 +229,21 @@ export function ProjectsTable({ projects: initial, clients, defaultClientId }: P
               value={servicesInput}
               onChange={(e) => setServicesInput(e.target.value)}
               placeholder="Web Design, SEO, Copywriting"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#5A5575] mb-1.5">
+              Estimated Hours{' '}
+              <span className="text-[#9490A8] font-normal">(optional)</span>
+            </label>
+            <input
+              type="number"
+              value={estimatedHours}
+              onChange={(e) => setEstimatedHours(e.target.value)}
+              placeholder="e.g. 40"
+              min="0"
+              step="0.5"
               className={inputCls}
             />
           </div>

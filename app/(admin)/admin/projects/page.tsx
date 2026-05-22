@@ -2,6 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ProjectsTable } from '@/components/admin/ProjectsTable'
 import type { Client, Project } from '@/lib/types'
 
+export const metadata = { title: 'Projects — Nuvello Studio' }
+
 interface Props {
   searchParams: { client?: string }
 }

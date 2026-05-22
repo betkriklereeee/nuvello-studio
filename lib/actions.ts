@@ -11,7 +11,6 @@ const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 export async function addClient(data: { name: string; email: string; company?: string }) {
   const db = createAdminClient()
 
-  // Silently create (or retrieve existing) auth user so the client can log in
   const { data: linkData, error: linkError } = await db.auth.admin.generateLink({
     type: 'magiclink',
     email: data.email,
@@ -56,13 +55,15 @@ export async function sendClientMagicLink(email: string, clientName: string) {
   })
   if (error) return { error: error.message }
 
+  // Send email (best-effort — don't fail if email errors)
   await sendClientInviteEmail({
     clientEmail: email,
     clientName,
     magicLink: data.properties.action_link,
   })
 
-  return { success: true }
+  // Also return the link so admin can copy it as a fallback
+  return { success: true, link: data.properties.action_link }
 }
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export async function addProject(data: {
   name: string
   status: string
   services: string[]
+  estimated_hours?: number | null
 }) {
   const db = createAdminClient()
   const { error } = await db.from('projects').insert(data)
@@ -83,7 +85,7 @@ export async function addProject(data: {
 
 export async function editProject(
   id: string,
-  data: { name: string; client_id: string; status: string; services: string[] }
+  data: { name: string; client_id: string; status: string; services: string[]; estimated_hours?: number | null }
 ) {
   const db = createAdminClient()
   const { error } = await db.from('projects').update(data).eq('id', id)
@@ -167,7 +169,7 @@ export async function addDeliverable(data: {
   if (error) return { error: error.message }
   revalidatePath(`/admin/projects/${data.project_id}`)
 
-  // Notify client — best-effort, don't block on failure
+  // Notify client (best-effort)
   const { data: project } = await db
     .from('projects')
     .select('name, client_id')
@@ -225,4 +227,53 @@ export async function saveProjectDriveFolder(data: {
   if (error) return { error: error.message }
   revalidatePath(`/admin/projects/${data.project_id}`)
   return { success: true }
+}
+
+// ─── Time Entries ─────────────────────────────────────────────────────────────
+
+export async function addTimeEntry(data: {
+  project_id: string
+  hours: number
+  description: string
+}) {
+  const db = createAdminClient()
+  const { error } = await db.from('time_entries').insert(data)
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/projects/${data.project_id}`)
+  return { success: true }
+}
+
+export async function removeTimeEntry(id: string, projectId: string) {
+  const db = createAdminClient()
+  const { error } = await db.from('time_entries').delete().eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/projects/${projectId}`)
+  return { success: true }
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+
+export async function markMessagesRead(projectId: string) {
+  const db = createAdminClient()
+  await db.from('messages').update({ read: true }).eq('project_id', projectId).eq('read', false)
+  return { success: true }
+}
+
+// ─── Assets (Storage) ─────────────────────────────────────────────────────────
+
+export async function listProjectAssets(projectId: string) {
+  const db = createAdminClient()
+  const { data, error } = await db.storage
+    .from('project-assets')
+    .list(projectId, { sortBy: { column: 'created_at', order: 'desc' } })
+  if (error) return []
+  return (data ?? []).filter((f) => f.name !== '.emptyFolderPlaceholder')
+}
+
+export async function getAssetDownloadUrl(path: string): Promise<string | null> {
+  const db = createAdminClient()
+  const { data } = await db.storage
+    .from('project-assets')
+    .createSignedUrl(path, 3600)
+  return data?.signedUrl ?? null
 }

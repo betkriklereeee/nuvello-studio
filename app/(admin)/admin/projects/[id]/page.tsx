@@ -7,7 +7,13 @@ import { ProjectStatusUpdater } from '@/components/admin/ProjectStatusUpdater'
 import { MilestoneList } from '@/components/admin/MilestoneList'
 import { DeliverablesSection } from '@/components/admin/DeliverablesSection'
 import { DriveFolderSection } from '@/components/admin/DriveFolderSection'
-import type { Milestone, Deliverable, DriveFolder, ProjectStatus } from '@/lib/types'
+import { MessagesSection } from '@/components/admin/MessagesSection'
+import { TimeSection } from '@/components/admin/TimeSection'
+import { AssetsSection } from '@/components/admin/AssetsSection'
+import { listProjectAssets } from '@/lib/actions'
+import type { Milestone, Deliverable, DriveFolder, ProjectStatus, Message, TimeEntry } from '@/lib/types'
+
+export const metadata = { title: 'Project — Nuvello Studio' }
 
 interface Props {
   params: { id: string }
@@ -35,22 +41,28 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   if (!project) notFound()
 
-  const [{ data: milestones }, { data: deliverables }, { data: driveData }] = await Promise.all([
+  const [
+    { data: milestones },
+    { data: deliverables },
+    { data: driveData },
+    { data: messages },
+    { data: timeEntries },
+    assets,
+  ] = await Promise.all([
+    db.from('milestones').select('*').eq('project_id', params.id).order('sort_order'),
+    db.from('deliverables').select('*').eq('project_id', params.id).order('created_at'),
+    db.from('drive_folders').select('*').eq('project_id', params.id).maybeSingle(),
     db
-      .from('milestones')
+      .from('messages')
+      .select('*, clients(name)')
+      .eq('project_id', params.id)
+      .order('created_at', { ascending: false }),
+    db
+      .from('time_entries')
       .select('*')
       .eq('project_id', params.id)
-      .order('sort_order'),
-    db
-      .from('deliverables')
-      .select('*')
-      .eq('project_id', params.id)
-      .order('created_at'),
-    db
-      .from('drive_folders')
-      .select('*')
-      .eq('project_id', params.id)
-      .maybeSingle(),
+      .order('created_at', { ascending: false }),
+    listProjectAssets(params.id),
   ])
 
   const client = project.clients as { id: string; name: string } | null
@@ -68,7 +80,7 @@ export default async function ProjectDetailPage({ params }: Props) {
 
       {/* Project header */}
       <div className="bg-white rounded-xl border border-[#E2E0EB] p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-semibold text-[#2B2B2E]">{project.name}</h1>
@@ -95,8 +107,6 @@ export default async function ProjectDetailPage({ params }: Props) {
               </div>
             )}
           </div>
-
-          {/* Status updater */}
           <div className="flex-shrink-0">
             <label className="block text-xs font-medium text-[#9490A8] mb-1.5">
               Update Status
@@ -123,6 +133,28 @@ export default async function ProjectDetailPage({ params }: Props) {
           projectId={project.id}
           initialDeliverables={(deliverables as Deliverable[]) ?? []}
         />
+      </Section>
+
+      {/* Time Tracking */}
+      <Section title="Time Tracking">
+        <TimeSection
+          projectId={project.id}
+          initialEntries={(timeEntries as TimeEntry[]) ?? []}
+          estimatedHours={project.estimated_hours ?? null}
+        />
+      </Section>
+
+      {/* Messages */}
+      <Section title="Messages">
+        <MessagesSection
+          projectId={project.id}
+          messages={(messages as unknown as Message[]) ?? []}
+        />
+      </Section>
+
+      {/* Assets */}
+      <Section title="Client Assets">
+        <AssetsSection projectId={project.id} files={assets} />
       </Section>
 
       {/* Google Drive */}

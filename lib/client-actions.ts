@@ -1,8 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { createClient } from './supabase/server'
 import { createAdminClient } from './supabase/admin'
-import { sendDeliverableApprovedEmail, sendRevisionRequestedEmail } from './resend/emails'
+import {
+  sendDeliverableApprovedEmail,
+  sendRevisionRequestedEmail,
+  sendNewMessageEmail,
+} from './resend/emails'
 
 async function getDeliverableContext(id: string) {
   const db = createAdminClient()
@@ -75,6 +80,47 @@ export async function requestRevision(id: string, projectId: string, notes: stri
       revisionNotes: notes,
     })
   }
+
+  return { success: true }
+}
+
+export async function sendMessage(projectId: string, message: string) {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const db = createAdminClient()
+
+  const { data: client } = await db
+    .from('clients')
+    .select('id, name')
+    .eq('client_user_id', user.id)
+    .maybeSingle()
+  if (!client) return { error: 'Client record not found' }
+
+  const { data: project } = await db
+    .from('projects')
+    .select('name')
+    .eq('id', projectId)
+    .maybeSingle()
+  if (!project) return { error: 'Project not found' }
+
+  const { error } = await db.from('messages').insert({
+    project_id: projectId,
+    client_id: client.id,
+    message: message.trim(),
+  })
+  if (error) return { error: error.message }
+
+  // Email admin (best-effort)
+  await sendNewMessageEmail({
+    clientName: client.name,
+    projectName: project.name,
+    messageText: message.trim(),
+    projectId,
+  })
 
   return { success: true }
 }

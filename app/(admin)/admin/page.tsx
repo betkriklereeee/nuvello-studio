@@ -3,6 +3,8 @@ import { Users, FolderKanban, FileText, Clock } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DeliverableStatusBadge } from '@/components/admin/StatusBadge'
 
+export const metadata = { title: 'Dashboard — Nuvello Studio' }
+
 type RecentDeliverable = {
   id: string
   title: string

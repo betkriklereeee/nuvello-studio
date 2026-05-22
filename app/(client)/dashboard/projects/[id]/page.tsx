@@ -5,7 +5,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ProjectStatusBadge } from '@/components/admin/StatusBadge'
 import { MilestoneTracker } from '@/components/client/MilestoneTracker'
 import { DeliverableCard } from '@/components/client/DeliverableCard'
-import type { Milestone, Deliverable, DriveFolder } from '@/lib/types'
+import { TimeCard } from '@/components/client/TimeCard'
+import { AssetDropbox } from '@/components/client/AssetDropbox'
+import { ContactForm } from '@/components/client/ContactForm'
+import type { Milestone, Deliverable, DriveFolder, TimeEntry } from '@/lib/types'
+
+export const metadata = { title: 'My Project — Nuvello Studio' }
 
 interface Props {
   params: { id: string }
@@ -20,7 +25,6 @@ export default async function ClientProjectPage({ params }: Props) {
 
   const db = createAdminClient()
 
-  // Identify this user's client record
   const { data: client } = await db
     .from('clients')
     .select('id')
@@ -29,7 +33,6 @@ export default async function ClientProjectPage({ params }: Props) {
 
   if (!client) notFound()
 
-  // Fetch project, verifying it belongs to this client
   const { data: project } = await db
     .from('projects')
     .select('*')
@@ -39,18 +42,29 @@ export default async function ClientProjectPage({ params }: Props) {
 
   if (!project) notFound()
 
-  const [{ data: milestones }, { data: deliverables }, { data: driveFolder }] =
-    await Promise.all([
-      db.from('milestones').select('*').eq('project_id', params.id).order('sort_order'),
-      db.from('deliverables').select('*').eq('project_id', params.id).order('created_at'),
-      db.from('drive_folders').select('*').eq('project_id', params.id).maybeSingle(),
-    ])
+  const [
+    { data: milestones },
+    { data: deliverables },
+    { data: driveFolder },
+    { data: timeEntries },
+  ] = await Promise.all([
+    db.from('milestones').select('*').eq('project_id', params.id).order('sort_order'),
+    db.from('deliverables').select('*').eq('project_id', params.id).order('created_at'),
+    db.from('drive_folders').select('*').eq('project_id', params.id).maybeSingle(),
+    db
+      .from('time_entries')
+      .select('*')
+      .eq('project_id', params.id)
+      .order('created_at', { ascending: false }),
+  ])
 
   const lastUpdated = new Date(project.created_at).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
+
+  const estimatedHours = project.estimated_hours ? Number(project.estimated_hours) : null
 
   return (
     <div className="space-y-8">
@@ -97,20 +111,26 @@ export default async function ClientProjectPage({ params }: Props) {
         </section>
       )}
 
-      {/* Google Drive folder — only shown if linked */}
+      {/* Time tracking — only shown if estimated hours is set */}
+      {estimatedHours != null && estimatedHours > 0 && (
+        <TimeCard
+          entries={(timeEntries as TimeEntry[]) ?? []}
+          estimatedHours={estimatedHours}
+        />
+      )}
+
+      {/* Google Drive folder */}
       {driveFolder && (
         <section>
           <h2 className="text-sm font-semibold text-[#2B2B2E] mb-4">Project Files</h2>
-          <div className="bg-white rounded-xl border border-[#E2E0EB] p-5 flex items-center justify-between gap-4">
+          <div className="bg-white rounded-xl border border-[#E2E0EB] p-5 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-[#EEEDF8] flex items-center justify-center flex-shrink-0">
                 <FolderOpen size={18} className="text-[#1E1F6B]" />
               </div>
               <div>
                 <p className="text-sm font-medium text-[#2B2B2E]">Project Files</p>
-                <p className="text-xs text-[#9490A8] mt-0.5">
-                  All project assets in one place
-                </p>
+                <p className="text-xs text-[#9490A8] mt-0.5">All project assets in one place</p>
               </div>
             </div>
             <a
@@ -125,6 +145,12 @@ export default async function ClientProjectPage({ params }: Props) {
           </div>
         </section>
       )}
+
+      {/* Asset Dropbox */}
+      <AssetDropbox projectId={params.id} />
+
+      {/* Contact form */}
+      <ContactForm projectId={params.id} />
     </div>
   )
 }
