@@ -34,16 +34,20 @@ function CallbackHandler() {
     const supabase = createClient()
 
     async function handle() {
-      // Case 1: hash fragment — Supabase magic link / email OTP
+      // Case 1: hash fragment — Supabase magic link / email OTP / recovery
       const hash = window.location.hash.slice(1) // strip leading #
       if (hash) {
         const params = new URLSearchParams(hash)
         const access_token = params.get('access_token')
         const refresh_token = params.get('refresh_token')
+        const type = params.get('type')
 
         if (access_token && refresh_token) {
           const { error } = await supabase.auth.setSession({ access_token, refresh_token })
           if (error) { router.replace('/login?error=auth_callback'); return }
+          // Recovery links always go to /dashboard so the onboarding modal
+          // can prompt the user to set (or update) their password
+          if (type === 'recovery') { router.replace('/dashboard'); return }
           router.replace(await resolveDestination(supabase))
           return
         }

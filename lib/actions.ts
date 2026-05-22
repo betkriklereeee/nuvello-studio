@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from './supabase/admin'
-import { sendClientInviteEmail, sendDeliverableUploadedEmail } from './resend/emails'
+import { createClient } from './supabase/server'
+import { sendClientInviteEmail, sendDeliverableUploadedEmail, sendPasswordResetEmail } from './resend/emails'
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
@@ -276,4 +277,35 @@ export async function getAssetDownloadUrl(path: string): Promise<string | null> 
     .from('project-assets')
     .createSignedUrl(path, 3600)
   return data?.signedUrl ?? null
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+export async function updateOnboarded() {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { error } = await supabase
+    .from('profiles')
+    .update({ onboarded: true })
+    .eq('id', user.id)
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+export async function sendPasswordReset(email: string) {
+  const db = createAdminClient()
+  const { data, error } = await db.auth.admin.generateLink({
+    type: 'recovery',
+    email,
+    options: { redirectTo: `${baseUrl}/auth/callback` },
+  })
+  if (error) return { error: error.message }
+  const link = data.properties?.action_link
+  if (!link) return { error: 'Failed to generate reset link' }
+  const { error: emailError } = await sendPasswordResetEmail({ clientEmail: email, resetLink: link })
+  if (emailError) return { error: emailError }
+  return { success: true }
 }

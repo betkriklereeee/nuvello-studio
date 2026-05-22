@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ProjectStatusBadge } from '@/components/admin/StatusBadge'
 import { SendMagicLinkButton } from '@/components/admin/SendMagicLinkButton'
+import { SendPasswordResetButton } from '@/components/admin/SendPasswordResetButton'
 
 interface Props {
   params: { id: string }
@@ -50,7 +51,10 @@ export default async function ClientDetailPage({ params }: Props) {
               Client since {new Date(client.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <SendMagicLinkButton email={client.email} clientName={client.name} />
+          <div className="flex flex-col items-end gap-2">
+            <SendMagicLinkButton email={client.email} clientName={client.name} />
+            <SendPasswordResetButton email={client.email} />
+          </div>
         </div>
       </div>
 

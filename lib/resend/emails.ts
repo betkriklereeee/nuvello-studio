@@ -136,6 +136,29 @@ export async function sendRevisionRequestedEmail({
   return { error: error?.message }
 }
 
+export async function sendPasswordResetEmail({
+  clientEmail,
+  resetLink,
+}: {
+  clientEmail: string
+  resetLink: string
+}) {
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    to: clientEmail,
+    subject: 'Reset your Nuvello Studio password',
+    html: layout(
+      'Reset your password',
+      'Click below to reset your password for Nuvello Studio. This link is single-use and expires shortly.',
+      'Reset Password',
+      resetLink,
+      "If you didn't request a password reset, you can safely ignore this email."
+    ),
+  })
+  if (error) console.error('[resend] sendPasswordResetEmail:', error)
+  return { error: error?.message }
+}
+
 export async function sendNewMessageEmail({
   clientName,
   projectName,
