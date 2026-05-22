@@ -28,7 +28,7 @@ export function ContactForm({ projectId }: { projectId: string }) {
         <h2 className="text-sm font-semibold text-[#2B2B2E] mb-4">Have a question?</h2>
         <div className="bg-white rounded-xl border border-[#E2E0EB] p-5 text-center space-y-2">
           <p className="text-sm font-medium text-green-700">✓ Message sent!</p>
-          <p className="text-xs text-[#9490A8]">We'll get back to you shortly.</p>
+          <p className="text-xs text-[#9490A8]">We&apos;ll get back to you shortly.</p>
           <button
             onClick={() => setState('idle')}
             className="text-xs text-[#1E1F6B] hover:underline"
