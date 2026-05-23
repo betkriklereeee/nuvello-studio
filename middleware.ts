@@ -23,7 +23,21 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
+
+  // ── Recovery/expired-link intercept ──────────────────────────────────────
+  // If a Supabase recovery link lands on /admin or /dashboard (e.g. because
+  // the user was already signed in when they clicked it), catch it here and
+  // send to the dedicated reset-password page.
+  // Note: hash fragments are not sent to the server, so we check query params
+  // only. The callback page handles the hash fragment case client-side.
+  if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) {
+    const isRecovery = searchParams.get('type') === 'recovery'
+    const isExpired  = searchParams.get('error_code') === 'otp_expired'
+    if (isRecovery || isExpired) {
+      return NextResponse.redirect(new URL('/auth/reset-password', request.url))
+    }
+  }
 
   // Always call getUser() to refresh the session cookie
   const { data: { user } } = await supabase.auth.getUser()

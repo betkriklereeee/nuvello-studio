@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'magic' | 'password'
@@ -16,7 +16,10 @@ const btnClass =
   'w-full py-2.5 px-4 rounded-md bg-[#1E1F6B] hover:bg-[#16176B] text-white text-sm ' +
   'font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed'
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const linkExpired = searchParams.get('error') === 'link_expired'
+
   const [tab, setTab] = useState<Tab>('magic')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -87,6 +90,13 @@ export default function LoginPage() {
           />
           <p className="mt-3 text-sm text-[#9490A8]">Your project hub.</p>
         </div>
+
+        {/* Expired link banner */}
+        {linkExpired && (
+          <div className="mb-5 px-4 py-3 rounded-lg bg-[#FFF8F8] border border-[#F5C6C6] text-sm text-[#B33A3A]">
+            Your reset link has expired. Please request a new one.
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b border-[#E2E0EB] mb-6">
@@ -181,5 +191,13 @@ export default function LoginPage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -38,15 +38,23 @@ function CallbackHandler() {
       const hash = window.location.hash.slice(1) // strip leading #
       if (hash) {
         const hashParams = new URLSearchParams(hash)
-        const access_token = hashParams.get('access_token')
+        const access_token  = hashParams.get('access_token')
         const refresh_token = hashParams.get('refresh_token')
-        const type = hashParams.get('type')
+        const type          = hashParams.get('type')
+        const hashError     = hashParams.get('error')
+        const errorCode     = hashParams.get('error_code')
+
+        // Expired or denied links — surface a friendly message on login
+        if (hashError === 'access_denied' || errorCode === 'otp_expired') {
+          router.replace('/login?error=link_expired')
+          return
+        }
 
         if (access_token && refresh_token) {
           const { error } = await supabase.auth.setSession({ access_token, refresh_token })
           if (error) { router.replace('/login?error=auth_callback'); return }
 
-          // Check type=recovery BEFORE resolving the normal destination
+          // type=recovery check BEFORE any role-based destination logic
           if (type === 'recovery') {
             router.push('/auth/reset-password')
             return
