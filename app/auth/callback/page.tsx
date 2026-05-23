@@ -33,54 +33,40 @@ function CallbackHandler() {
   useEffect(() => {
     const supabase = createClient()
 
-    // Supabase fires PASSWORD_RECOVERY before SIGNED_IN for recovery links.
-    // Subscribe first so we never miss it regardless of which flow runs.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        subscription.unsubscribe()
-        router.replace('/auth/reset-password')
-      }
-    })
-
     async function handle() {
-      // Case 1: hash fragment — Supabase magic link / email OTP / recovery
+      // Case 1: hash fragment — magic link, OTP, or password recovery
       const hash = window.location.hash.slice(1) // strip leading #
       if (hash) {
-        const params = new URLSearchParams(hash)
-        const access_token = params.get('access_token')
-        const refresh_token = params.get('refresh_token')
-        const type = params.get('type')
+        const hashParams = new URLSearchParams(hash)
+        const access_token = hashParams.get('access_token')
+        const refresh_token = hashParams.get('refresh_token')
+        const type = hashParams.get('type')
 
         if (access_token && refresh_token) {
           const { error } = await supabase.auth.setSession({ access_token, refresh_token })
-          if (error) { subscription.unsubscribe(); router.replace('/login?error=auth_callback'); return }
-          // setSession won't fire onAuthStateChange with PASSWORD_RECOVERY,
-          // so we handle it explicitly from the hash type param.
-          if (type === 'recovery') { subscription.unsubscribe(); router.replace('/auth/reset-password'); return }
-          subscription.unsubscribe()
+          if (error) { router.replace('/login?error=auth_callback'); return }
+
+          // Check type=recovery BEFORE resolving the normal destination
+          if (type === 'recovery') {
+            router.push('/auth/reset-password')
+            return
+          }
+
           router.replace(await resolveDestination(supabase))
           return
         }
       }
 
-      // Case 2: PKCE code exchange — Supabase fires PASSWORD_RECOVERY via
-      // onAuthStateChange above when this is a recovery link, so we just
-      // exchange and let the subscription handle the redirect.
+      // Case 2: PKCE code exchange (OAuth / some email flows)
       const code = searchParams.get('code')
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (error) { subscription.unsubscribe(); router.replace('/login?error=auth_callback'); return }
-        // If PASSWORD_RECOVERY fires, the subscription redirects; otherwise fall through.
-        // Give it one tick, then resolve normally.
-        await new Promise((r) => setTimeout(r, 0))
-        // If already navigating to reset-password the subscription handled it; guard here.
-        subscription.unsubscribe()
+        if (error) { router.replace('/login?error=auth_callback'); return }
         router.replace(await resolveDestination(supabase))
         return
       }
 
-      // No token or code — nothing to do
-      subscription.unsubscribe()
+      // Nothing usable — bail out
       router.replace('/login?error=auth_callback')
     }
 
