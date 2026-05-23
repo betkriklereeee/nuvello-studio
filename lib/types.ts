@@ -76,6 +76,18 @@ export type TimeEntry = {
   created_at: string
 }
 
+export type Annotation = {
+  id: string
+  deliverable_id: string
+  author_id: string
+  type: 'pin' | 'comment'
+  body: string
+  x_percent: number | null
+  y_percent: number | null
+  pin_number: number | null
+  created_at: string
+}
+
 export type StorageFile = {
   name: string
   id: string | null

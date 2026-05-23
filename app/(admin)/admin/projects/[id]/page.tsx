@@ -14,7 +14,7 @@ import { TimeSection } from '@/components/admin/TimeSection'
 import { AssetsSection } from '@/components/admin/AssetsSection'
 import { BicPanel } from '@/components/admin/BicPanel'
 import { listProjectAssets } from '@/lib/actions'
-import type { Milestone, Deliverable, DriveFolder, ProjectStatus, Message, TimeEntry, BicStatus } from '@/lib/types'
+import type { Milestone, Deliverable, DriveFolder, ProjectStatus, Message, TimeEntry, BicStatus, Annotation } from '@/lib/types'
 
 export const metadata = { title: 'Project — Nuvello Studio' }
 
@@ -67,6 +67,18 @@ export default async function ProjectDetailPage({ params }: Props) {
       .order('created_at', { ascending: false }),
     listProjectAssets(params.id),
   ])
+
+  // Batch-fetch annotations for all deliverables
+  const deliverableIds = (deliverables ?? []).map((d) => d.id)
+  const { data: allAnnotations } = deliverableIds.length > 0
+    ? await db.from('annotations').select('*').in('deliverable_id', deliverableIds).order('created_at', { ascending: true })
+    : { data: [] as Annotation[] }
+
+  const annotationsByDeliverable: Record<string, Annotation[]> = {}
+  for (const ann of allAnnotations ?? []) {
+    if (!annotationsByDeliverable[ann.deliverable_id]) annotationsByDeliverable[ann.deliverable_id] = []
+    annotationsByDeliverable[ann.deliverable_id].push(ann as Annotation)
+  }
 
   const client = project.clients as { id: string; name: string } | null
 
@@ -143,6 +155,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         <DeliverablesSection
           projectId={project.id}
           initialDeliverables={(deliverables as Deliverable[]) ?? []}
+          annotationsByDeliverable={annotationsByDeliverable}
         />
       </Section>
 

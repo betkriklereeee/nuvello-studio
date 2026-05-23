@@ -313,6 +313,19 @@ export async function updateOnboarded() {
   return { success: true }
 }
 
+// ─── Annotations ─────────────────────────────────────────────────────────────
+
+export async function getAnnotations(deliverableId: string) {
+  const db = createAdminClient()
+  const { data, error } = await db
+    .from('annotations')
+    .select('*')
+    .eq('deliverable_id', deliverableId)
+    .order('created_at', { ascending: true })
+  if (error) return []
+  return data ?? []
+}
+
 // ─── Ball in Your Court ───────────────────────────────────────────────────────
 
 export async function updateBicStatus(

@@ -7,7 +7,9 @@ import {
   sendDeliverableApprovedEmail,
   sendRevisionRequestedEmail,
   sendNewMessageEmail,
+  sendAnnotationEmail,
 } from './resend/emails'
+import type { Annotation } from './types'
 
 async function getDeliverableContext(id: string) {
   const db = createAdminClient()
@@ -103,6 +105,72 @@ export async function requestRevision(id: string, projectId: string, notes: stri
   }
 
   return { success: true }
+}
+
+export async function addAnnotation(
+  deliverableId: string,
+  type: 'pin' | 'comment',
+  body: string,
+  xPercent?: number | null,
+  yPercent?: number | null,
+  pinNumber?: number | null,
+): Promise<{ error: string } | { success: true; annotation: Annotation }> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const db = createAdminClient()
+
+  const { data: annotation, error } = await db
+    .from('annotations')
+    .insert({
+      deliverable_id: deliverableId,
+      author_id: user.id,
+      type,
+      body: body.trim(),
+      x_percent: xPercent ?? null,
+      y_percent: yPercent ?? null,
+      pin_number: pinNumber ?? null,
+    })
+    .select()
+    .single()
+
+  if (error) return { error: error.message }
+
+  // Build context for admin email
+  const { data: deliverable } = await db
+    .from('deliverables')
+    .select('title, project_id')
+    .eq('id', deliverableId)
+    .single()
+
+  if (deliverable) {
+    const { data: project } = await db
+      .from('projects')
+      .select('name, client_id')
+      .eq('id', deliverable.project_id)
+      .single()
+    if (project) {
+      const { data: client } = await db
+        .from('clients')
+        .select('name')
+        .eq('id', project.client_id)
+        .single()
+      await sendAnnotationEmail({
+        clientName: client?.name ?? 'A client',
+        deliverableTitle: deliverable.title,
+        projectName: project.name,
+        projectId: deliverable.project_id,
+        annotationBody: body.trim(),
+        type,
+        pinNumber: pinNumber ?? null,
+        xPercent: xPercent ?? null,
+        yPercent: yPercent ?? null,
+      })
+    }
+  }
+
+  return { success: true, annotation: annotation as Annotation }
 }
 
 export async function sendMessage(projectId: string, message: string) {

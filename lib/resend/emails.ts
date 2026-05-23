@@ -163,6 +163,55 @@ export async function sendRevisionRequestedEmail({
   return { error: error?.message }
 }
 
+export async function sendAnnotationEmail({
+  clientName,
+  deliverableTitle,
+  projectName,
+  projectId,
+  annotationBody,
+  type,
+  pinNumber,
+  xPercent,
+  yPercent,
+}: {
+  clientName: string
+  deliverableTitle: string
+  projectName: string
+  projectId: string
+  annotationBody: string
+  type: 'pin' | 'comment'
+  pinNumber?: number | null
+  xPercent?: number | null
+  yPercent?: number | null
+}) {
+  const pinLine = type === 'pin' && pinNumber != null
+    ? `<p style="margin:8px 0 0;font-size:13px;color:#9490A8;">Pin ${pinNumber} at position ${Math.round(xPercent ?? 0)}%, ${Math.round(yPercent ?? 0)}%</p>`
+    : ''
+
+  const quoteBlock = `<div style="background:#F8F8FA;border-left:3px solid #C5C4E0;border-radius:0 4px 4px 0;padding:12px 16px;margin-bottom:28px;">
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#5A5575;">${annotationBody}</p>
+          ${pinLine}
+        </div>`
+
+  const body = `<strong style="color:#2B2B2E;">${clientName}</strong> left feedback on <strong style="color:#2B2B2E;">${deliverableTitle}</strong> in <strong style="color:#2B2B2E;">${projectName}</strong>:`
+
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    to: ADMIN_EMAIL,
+    subject: `New feedback on ${deliverableTitle} — ${projectName}`,
+    html: layout(
+      `New feedback on ${deliverableTitle}`,
+      'A client left feedback',
+      body,
+      'View Feedback',
+      `${PORTAL_URL}/admin/projects/${projectId}`,
+      quoteBlock,
+    ),
+  })
+  if (error) console.error('[resend] sendAnnotationEmail:', error)
+  return { error: error?.message }
+}
+
 export async function sendBicClientEmail({
   clientEmail,
   projectName,

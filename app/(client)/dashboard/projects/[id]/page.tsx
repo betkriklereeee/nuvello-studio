@@ -8,7 +8,8 @@ import { DeliverableCard } from '@/components/client/DeliverableCard'
 import { TimeCard } from '@/components/client/TimeCard'
 import { AssetDropbox } from '@/components/client/AssetDropbox'
 import { ContactForm } from '@/components/client/ContactForm'
-import type { Milestone, Deliverable, DriveFolder, TimeEntry, BicStatus } from '@/lib/types'
+import { DeliverableAnnotations } from '@/components/client/DeliverableAnnotations'
+import type { Milestone, Deliverable, DriveFolder, TimeEntry, BicStatus, Annotation } from '@/lib/types'
 
 export const metadata = { title: 'My Project — Nuvello Studio' }
 
@@ -109,6 +110,18 @@ export default async function ClientProjectPage({ params }: Props) {
       .order('created_at', { ascending: false }),
   ])
 
+  // Batch-fetch annotations for all deliverables in one query
+  const deliverableIds = (deliverables ?? []).map((d) => d.id)
+  const { data: allAnnotations } = deliverableIds.length > 0
+    ? await db.from('annotations').select('*').in('deliverable_id', deliverableIds).order('created_at', { ascending: true })
+    : { data: [] as Annotation[] }
+
+  const annotationsByDeliverable: Record<string, Annotation[]> = {}
+  for (const ann of allAnnotations ?? []) {
+    if (!annotationsByDeliverable[ann.deliverable_id]) annotationsByDeliverable[ann.deliverable_id] = []
+    annotationsByDeliverable[ann.deliverable_id].push(ann as Annotation)
+  }
+
   const lastUpdated = new Date(project.created_at).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
@@ -161,7 +174,13 @@ export default async function ClientProjectPage({ params }: Props) {
           <h2 className="text-sm font-semibold text-[#2B2B2E] mb-4">Deliverables</h2>
           <div className="space-y-3">
             {(deliverables as Deliverable[]).map((d) => (
-              <DeliverableCard key={d.id} deliverable={d} projectId={params.id} />
+              <div key={d.id}>
+                <DeliverableCard deliverable={d} projectId={params.id} />
+                <DeliverableAnnotations
+                  deliverable={d}
+                  initialAnnotations={annotationsByDeliverable[d.id] ?? []}
+                />
+              </div>
             ))}
           </div>
         </section>

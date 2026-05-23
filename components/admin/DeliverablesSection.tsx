@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ExternalLink, Trash2, Plus, ChevronDown } from 'lucide-react'
 import { addDeliverable, setDeliverableStatus, removeDeliverable } from '@/lib/actions'
 import { DeliverableStatusBadge } from './StatusBadge'
-import type { Deliverable, DeliverableStatus } from '@/lib/types'
+import { AnnotationViewer } from './AnnotationViewer'
+import type { Deliverable, DeliverableStatus, Annotation } from '@/lib/types'
 
 const STATUSES: DeliverableStatus[] = ['pending', 'approved', 'revision']
 
@@ -16,9 +17,11 @@ const inputCls =
 export function DeliverablesSection({
   projectId,
   initialDeliverables,
+  annotationsByDeliverable = {},
 }: {
   projectId: string
   initialDeliverables: Deliverable[]
+  annotationsByDeliverable?: Record<string, Annotation[]>
 }) {
   const [deliverables, setDeliverables] = useState(initialDeliverables)
   const [showForm, setShowForm] = useState(false)
@@ -63,8 +66,8 @@ export function DeliverablesSection({
       )}
 
       {deliverables.map((d) => (
+        <div key={d.id}>
         <div
-          key={d.id}
           className="flex items-start gap-3 px-4 py-3 rounded-lg border border-[#E2E0EB] bg-white"
         >
           <div className="flex-1 min-w-0">
@@ -116,6 +119,13 @@ export function DeliverablesSection({
           >
             <Trash2 size={14} />
           </button>
+        </div>
+
+        {/* Annotation viewer — read-only */}
+        <AnnotationViewer
+          deliverable={d}
+          annotations={annotationsByDeliverable[d.id] ?? []}
+        />
         </div>
       ))}
 
