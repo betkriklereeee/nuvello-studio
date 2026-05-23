@@ -163,6 +163,37 @@ export async function sendRevisionRequestedEmail({
   return { error: error?.message }
 }
 
+export async function sendBicClientEmail({
+  clientEmail,
+  projectName,
+  projectId,
+  message,
+}: {
+  clientEmail: string
+  projectName: string
+  projectId: string
+  message?: string | null
+}) {
+  const body = message
+    ? message
+    : 'Nuvello has updated your project and is waiting for your input.'
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    to: clientEmail,
+    subject: `Action needed on ${projectName}`,
+    html: layout(
+      `Action needed on ${projectName}`,
+      `Your turn on ${projectName}`,
+      body,
+      'View Project',
+      `${PORTAL_URL}/dashboard/projects/${projectId}`,
+      '',
+    ),
+  })
+  if (error) console.error('[resend] sendBicClientEmail:', error)
+  return { error: error?.message }
+}
+
 export async function sendPasswordResetEmail({
   clientEmail,
   resetLink,

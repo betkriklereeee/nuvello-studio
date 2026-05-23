@@ -12,8 +12,9 @@ import { DriveFolderSection } from '@/components/admin/DriveFolderSection'
 import { MessagesSection } from '@/components/admin/MessagesSection'
 import { TimeSection } from '@/components/admin/TimeSection'
 import { AssetsSection } from '@/components/admin/AssetsSection'
+import { BicPanel } from '@/components/admin/BicPanel'
 import { listProjectAssets } from '@/lib/actions'
-import type { Milestone, Deliverable, DriveFolder, ProjectStatus, Message, TimeEntry } from '@/lib/types'
+import type { Milestone, Deliverable, DriveFolder, ProjectStatus, Message, TimeEntry, BicStatus } from '@/lib/types'
 
 export const metadata = { title: 'Project — Nuvello Studio' }
 
@@ -120,6 +121,14 @@ export default async function ProjectDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Ball in Your Court */}
+      <BicPanel
+        projectId={project.id}
+        initialStatus={(project.bic_status ?? 'admin') as BicStatus}
+        initialMessage={project.bic_message ?? null}
+        updatedAt={project.bic_updated_at ?? null}
+      />
 
       {/* Milestones */}
       <Section title="Milestones">

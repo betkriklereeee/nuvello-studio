@@ -47,6 +47,20 @@ export async function approveDeliverable(id: string, projectId: string) {
     .eq('id', id)
   if (error) return { error: error.message }
   revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/admin/projects/${projectId}`)
+
+  // BIC: if no other pending/revision deliverables remain → 'clear', else keep 'client'
+  const { data: remaining } = await db
+    .from('deliverables')
+    .select('id')
+    .eq('project_id', projectId)
+    .in('status', ['pending', 'revision'])
+    .neq('id', id)
+  const newBic = remaining && remaining.length > 0 ? 'client' : 'clear'
+  await db
+    .from('projects')
+    .update({ bic_status: newBic, bic_updated_at: new Date().toISOString() })
+    .eq('id', projectId)
 
   const ctx = await getDeliverableContext(id)
   if (ctx) {
@@ -69,6 +83,13 @@ export async function requestRevision(id: string, projectId: string, notes: stri
     .eq('id', id)
   if (error) return { error: error.message }
   revalidatePath(`/dashboard/projects/${projectId}`)
+  revalidatePath(`/admin/projects/${projectId}`)
+
+  // BIC: client requested revision — ball is now in admin's court
+  await db
+    .from('projects')
+    .update({ bic_status: 'admin', bic_message: null, bic_updated_at: new Date().toISOString() })
+    .eq('id', projectId)
 
   const ctx = await getDeliverableContext(id)
   if (ctx) {

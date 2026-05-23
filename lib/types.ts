@@ -6,12 +6,13 @@ export type Client = {
   pipedrive_deal_id: string | null
   client_user_id: string | null
   created_at: string
-  projects?: { count: number }[]
+  projects?: { id: string; bic_status: string; status: string; created_at: string }[]
 }
 
 export type ProjectStatus = 'discovery' | 'design' | 'build' | 'launch' | 'complete'
 export type MilestoneStatus = 'pending' | 'in_progress' | 'complete'
 export type DeliverableStatus = 'pending' | 'approved' | 'revision'
+export type BicStatus = 'admin' | 'client' | 'clear'
 
 export type Project = {
   id: string
@@ -20,6 +21,9 @@ export type Project = {
   status: ProjectStatus
   services: string[] | null
   estimated_hours: number | null
+  bic_status: BicStatus
+  bic_message: string | null
+  bic_updated_at: string | null
   created_at: string
   clients?: { name: string } | null
 }

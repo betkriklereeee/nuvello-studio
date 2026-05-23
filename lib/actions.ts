@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from './supabase/admin'
 import { createClient } from './supabase/server'
-import { sendClientInviteEmail, sendDeliverableUploadedEmail, sendPasswordResetEmail } from './resend/emails'
+import { sendClientInviteEmail, sendDeliverableUploadedEmail, sendPasswordResetEmail, sendBicClientEmail } from './resend/emails'
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
@@ -170,23 +170,43 @@ export async function addDeliverable(data: {
   if (error) return { error: error.message }
   revalidatePath(`/admin/projects/${data.project_id}`)
 
-  // Notify client (best-effort)
+  // Fetch project + client for notifications and BIC update
   const { data: project } = await db
     .from('projects')
-    .select('name, client_id')
+    .select('name, client_id, bic_status')
     .eq('id', data.project_id)
     .single()
+
   if (project) {
     const { data: client } = await db
       .from('clients')
       .select('email')
       .eq('id', project.client_id)
       .single()
+
+    // Notify client of new deliverable (best-effort)
     if (client) {
       await sendDeliverableUploadedEmail({
         clientEmail: client.email,
         projectName: project.name,
         deliverableTitle: data.title,
+      })
+    }
+
+    // Flip BIC to client — uploading means the ball is in the client's court
+    const wasAlreadyClient = project.bic_status === 'client'
+    await db
+      .from('projects')
+      .update({ bic_status: 'client', bic_message: null, bic_updated_at: new Date().toISOString() })
+      .eq('id', data.project_id)
+
+    // Only email about BIC if it wasn't already 'client'
+    if (!wasAlreadyClient && client) {
+      await sendBicClientEmail({
+        clientEmail: client.email,
+        projectName: project.name,
+        projectId: data.project_id,
+        message: null,
       })
     }
   }
@@ -290,6 +310,56 @@ export async function updateOnboarded() {
     .update({ onboarded: true })
     .eq('id', user.id)
   if (error) return { error: error.message }
+  return { success: true }
+}
+
+// ─── Ball in Your Court ───────────────────────────────────────────────────────
+
+export async function updateBicStatus(
+  projectId: string,
+  bicStatus: 'admin' | 'client' | 'clear',
+  bicMessage: string | null
+) {
+  const db = createAdminClient()
+
+  // Read current status so we can decide whether to send email
+  const { data: project } = await db
+    .from('projects')
+    .select('bic_status, name, client_id')
+    .eq('id', projectId)
+    .single()
+  if (!project) return { error: 'Project not found' }
+
+  const { error } = await db
+    .from('projects')
+    .update({
+      bic_status: bicStatus,
+      bic_message: bicMessage || null,
+      bic_updated_at: new Date().toISOString(),
+    })
+    .eq('id', projectId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/admin/projects/${projectId}`)
+  revalidatePath(`/dashboard/projects/${projectId}`)
+
+  // Email client only when flipping TO 'client' (not if already 'client')
+  if (bicStatus === 'client' && project.bic_status !== 'client') {
+    const { data: client } = await db
+      .from('clients')
+      .select('email')
+      .eq('id', project.client_id)
+      .single()
+    if (client) {
+      await sendBicClientEmail({
+        clientEmail: client.email,
+        projectName: project.name,
+        projectId,
+        message: bicMessage,
+      })
+    }
+  }
+
   return { success: true }
 }
 

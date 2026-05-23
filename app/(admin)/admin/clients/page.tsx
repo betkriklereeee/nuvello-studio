@@ -8,7 +8,7 @@ export default async function ClientsPage() {
   const db = createAdminClient()
   const { data } = await db
     .from('clients')
-    .select('*, projects(count)')
+    .select('*, projects(id, bic_status, status, created_at)')
     .order('created_at', { ascending: false })
 
   return <ClientsTable clients={(data as Client[]) ?? []} />

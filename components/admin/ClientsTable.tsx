@@ -12,14 +12,62 @@ const inputCls =
   'w-full px-3 py-2 rounded-md border border-[#E2E0EB] text-sm text-[#2B2B2E] ' +
   'placeholder-[#9490A8] focus:outline-none focus:ring-2 focus:ring-[#C5C4E0] bg-white'
 
+type FilterValue = 'all' | 'client' | 'admin'
+
+/** Returns the BIC status of the most active (non-complete, most recent) project. */
+function clientBic(c: Client): string | null {
+  const active = (c.projects ?? [])
+    .filter((p) => p.status !== 'complete')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  return active[0]?.bic_status ?? null
+}
+
+function BicBadge({ bic }: { bic: string | null }) {
+  if (!bic || bic === 'clear') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-[#9490A8]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#8EECD4] inline-block" />
+        All clear
+      </span>
+    )
+  }
+  if (bic === 'client') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-[#1E1F6B] font-medium">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#1E1F6B] inline-block" />
+        Awaiting client
+      </span>
+    )
+  }
+  // admin
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-[#9490A8]">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#E2E0EB] inline-block" />
+      In progress
+    </span>
+  )
+}
+
+const FILTERS: { value: FilterValue; label: string }[] = [
+  { value: 'all',    label: 'All'             },
+  { value: 'client', label: 'Awaiting Client' },
+  { value: 'admin',  label: 'In Progress'     },
+]
+
 export function ClientsTable({ clients: initial }: { clients: Client[] }) {
   const [clients] = useState(initial)
+  const [filter, setFilter] = useState<FilterValue>('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Client | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  const visible = clients.filter((c) => {
+    if (filter === 'all') return true
+    return clientBic(c) === filter
+  })
 
   function openAdd() {
     setEditing(null)
@@ -76,11 +124,29 @@ export function ClientsTable({ clients: initial }: { clients: Client[] }) {
         </button>
       </div>
 
+      {/* Filter bar */}
+      <div className="flex gap-2 mb-4">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFilter(f.value)}
+            className={[
+              'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+              filter === f.value
+                ? 'bg-[#1E1F6B] text-white'
+                : 'bg-white border border-[#E2E0EB] text-[#5A5575] hover:border-[#C5C4E0] hover:text-[#2B2B2E]',
+            ].join(' ')}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white rounded-xl border border-[#E2E0EB] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#E2E0EB] bg-[#F8F8FA]">
-              {['Name', 'Company', 'Email', 'Projects', 'Created', ''].map((h) => (
+              {['Name', 'Company', 'Email', 'Projects', 'Status', 'Created', ''].map((h) => (
                 <th
                   key={h}
                   className="text-left px-6 py-3 text-xs font-medium text-[#9490A8] uppercase tracking-wider"
@@ -91,20 +157,23 @@ export function ClientsTable({ clients: initial }: { clients: Client[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E2E0EB]">
-            {clients.length === 0 ? (
+            {visible.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#9490A8]">
-                  No clients yet. Add your first client to get started.
+                <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#9490A8]">
+                  {filter === 'all'
+                    ? 'No clients yet. Add your first client to get started.'
+                    : 'No clients match this filter.'}
                 </td>
               </tr>
             ) : (
-              clients.map((c) => (
+              visible.map((c) => (
                 <tr key={c.id} className="hover:bg-[#F8F8FA] transition-colors">
                   <td className="px-6 py-4 font-medium text-[#2B2B2E]">{c.name}</td>
                   <td className="px-6 py-4 text-[#5A5575]">{c.company ?? '—'}</td>
                   <td className="px-6 py-4 text-[#5A5575]">{c.email}</td>
-                  <td className="px-6 py-4 text-[#5A5575]">
-                    {c.projects?.[0]?.count ?? 0}
+                  <td className="px-6 py-4 text-[#5A5575]">{c.projects?.length ?? 0}</td>
+                  <td className="px-6 py-4">
+                    <BicBadge bic={clientBic(c)} />
                   </td>
                   <td className="px-6 py-4 text-[#9490A8]">
                     {new Date(c.created_at).toLocaleDateString()}
